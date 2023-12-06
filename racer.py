@@ -27,19 +27,15 @@ class Joystick:
         # Input pins:
         self.button_L = DigitalInOut(board.D27)
         self.button_L.direction = Direction.INPUT
-        self.button_L.pull = Pull.UP
 
         self.button_R = DigitalInOut(board.D23)
         self.button_R.direction = Direction.INPUT
-        self.button_R.pull = Pull.UP
 
-        self.button_A = DigitalInOut(board.D5)  # Replace D22 with the actual pin connected to button A
+        self.button_A = DigitalInOut(board.D5)  
         self.button_A.direction = Direction.INPUT
-        self.button_A.pull = Pull.UP
 
         self.button_B = DigitalInOut(board.D6)
         self.button_B.direction = Direction.INPUT
-        self.button_B.pull = Pull.UP
 
         # Turn on the Backlight
         self.backlight = DigitalInOut(board.D26)
@@ -55,20 +51,21 @@ class Obstacle:
         self.height = height
         self.speed = speed
         self.x = random.randint(0, joystick.disp.width - self.width)
-        self.y = -self.height - 40  # 초기 위치
-        self.image = Image.open('racer/mercedes.png').convert('RGBA').resize((24,55))
-        self.x_speed = random.uniform(-5, 5)
+        self.y = -self.height - 100
+        image_choice = random.choice(['racer/mercedes.png', 'racer/mclaren.png'])
+        self.image = Image.open(image_choice).convert('RGBA').resize((24, 55))
+
+        self.x_speed = random.uniform(-5, 5) #좌우로
         self.x_acceleration = 0
 
     def update(self):
         self.y += self.speed
-        self.x += self.x_speed  # x 위치 업데이트
+        self.x += self.x_speed
 
-        # 화면의 양쪽 끝에 도달하면 방향 바꾸기
+        # 화면 끝에서 방향 변경
         if self.x <= 0 or self.x >= joystick.disp.width - self.width:
             self.x_speed = -self.x_speed
 
-        # 가속도를 랜덤하게 조정하고 속도에 반영
         self.x_acceleration = random.uniform(-0.1, 0.1)
         self.x_speed += self.x_acceleration
 
@@ -79,8 +76,8 @@ class Obstacle:
         obstacle_mask = self.image.split()[3]
         image.paste(self.image, (int(self.x), int(self.y)), obstacle_mask)
 
-    def collides_with(self, other):
-        buffer = 5  # Add this line to create a buffer zone
+    def collides_with(self, other): #충돌 감지 여유 
+        buffer = 5  
         return (
             self.x + buffer < other.x + other.width - buffer and
             self.x + self.width - buffer > other.x + buffer and
@@ -92,16 +89,16 @@ class ShieldItem:
     def __init__(self, width, height):
         self.width = width
         self.height = height
-        self.active = False  # 아이템이 활성화 중인지 여부
-        self.duration = 5  # 방어막 지속 시간 (초)
-        self.activation_time = 0  # 아이템이 활성화된 시간
-        self.spawn_time = 0  # 아이템이 생성된 시간
-        self.spawn_interval = random.randint(20, 30)  # 쉴드 아이템이 생성되는 간격
-        self.spawn_speed = 7  # 쉴드 아이템이 내려오는 속도
-        self.count = 0  # 사용 가능한 쉴드 아이템 개수
+        self.active = False  # 방어막 활성화?
+        self.duration = 5  # 방어막 지속
+        self.activation_time = 0  # 방어막 활성화
+        self.spawn_time = 0  
+        self.spawn_interval = random.randint(20, 30)  # 방어막 생성 간격
+        self.spawn_speed = 7
+        self.count = 0  # 방어막 카운트
         self.image = Image.open('racer/shield.png').convert('RGBA').resize((15, 18))
-        self.x = 0  # 쉴드 아이템의 x 좌표
-        self.y = 0  # 쉴드 아이템의 y 좌표
+        self.x = 0 
+        self.y = 0  
 
     def draw(self, image):
         shield_mask = self.image.split()[3]
@@ -111,10 +108,10 @@ class ShieldItem:
         self.active = True
         self.activation_time = time.monotonic()
         self.spawn_time = time.monotonic()
-        self.x = random.randint(0, game.width - self.width)  # 랜덤한 x 좌표
+        self.x = random.randint(0, game.width - self.width)  # 랜덤으로 생성
         self.y = -20
 
-    def collides_with(self, other):
+    def collides_with(self, other):  # 방어막 먹기
         return (
             self.x < other.car_x + other.car_width and
             self.x + self.width > other.car_x and
@@ -128,13 +125,13 @@ class ShieldItem:
 
     def collect(self):
         self.active = False
-        self.count += 1  # 쉴드 아이템 개수 증가
+        self.count += 1  # 방어막 카운트 +1
 
     def use(self):
         if self.count > 0:
             self.active = True
             self.activation_time = time.monotonic()
-            self.count -= 1  # 쉴드 아이템 사용시 개수 감소
+            self.count -= 1  # 방어막 사용시 카운트 업데이트
 
     def is_active(self):
         return self.active and (time.monotonic() - self.activation_time) < self.duration
@@ -147,38 +144,34 @@ class Game:
     def __init__(self, width, height):
         self.width = width
         self.height = height
-        self.obstacle_width = 20
-        self.obstacle_height = 50
-        self.car_width = 20
-        self.car_height = 50
+        self.obstacle_width = 24
+        self.obstacle_height = 55
+        self.car_width = 24
+        self.car_height = 55
         self.car_x = width // 2 - self.car_width // 2
-        self.car_y = height - self.car_height - 10
+        self.car_y = height - self.car_height - 10  # 플레이어 위치
         self.car_speed = 0
         self.car_acceleration = 2  # 가속도
         self.car_max_speed = 15  # 최대 속도
         self.obstacles = []
         self.last_obstacle_time = time.monotonic()
         self.car_image = Image.open('racer/ferrari.png').convert('RGBA').resize((24, 55))
-        self.shield_item = ShieldItem(20, 20)  # 방어막 아이템 초기화
+        self.shield_item = ShieldItem(20, 20)  
         self.last_shield_time = time.monotonic()
-        self.background_speed = 2  # Adjust the scrolling speed as needed
+        self.background_speed = 10  # 배경 스크롤 속도
         self.background_y = 0
         self.background_image = Image.open('racer/circuit.png').resize((width, height)).convert('RGBA')
 
-    def update_background(self):
+    def update_background(self):  # 배경 무한 스크롤 반복
         self.background_y += self.background_speed
         if self.background_y > self.height:
-            self.background_y = 0
+            self.background_y = 0 
 
-    def draw_background(self, image):
-        # Draw the top part of the background
+    def draw_background(self, image):  
         image.paste(self.background_image, (0, self.background_y - self.background_image.height))
-
-        # Draw the bottom part of the background
         image.paste(self.background_image, (0, self.background_y))
 
-    def spawn_shield(self):
-        # 쉴드 아이템 생성 로직
+    def spawn_shield(self):  # 일정 간격으로 방어막 생성 
         if time.monotonic() - self.last_shield_time > self.shield_item.spawn_interval:
             self.shield_item.spawn()
             self.last_shield_time = time.monotonic()
@@ -187,14 +180,21 @@ class Game:
         if self.shield_item.is_active():
             self.shield_item.draw(draw)
 
-    def spawn_obstacle(self):
-        if time.monotonic() - self.last_obstacle_time > 2.5: 
-            num_obstacles = random.randint(1, 2)  # 임의의 개수로 장애물 생성
+    def spawn_obstacle(self, score):
+        if time.monotonic() - self.last_obstacle_time > 2.0: 
+            num_obstacles = random.randint(1, 2)  # 범위 내의 개수로 장애물 생성
+
             for _ in range(num_obstacles):
-                obstacle_speed = random.uniform(5, 10)  # 장애물 속도를 랜덤하게 설정
+                if score >= 200:
+                    speed_base = 5 + (score // 200) * 2  # 점수 범위마다 기본 속도
+                    obstacle_speed = random.uniform(speed_base, speed_base + 3)  # 범위 내의 속도
+                else:
+                    obstacle_speed = random.uniform(5, 8)
+
                 new_obstacle = Obstacle(self.obstacle_width, self.obstacle_height, obstacle_speed)
                 if not any(new_obstacle.collides_with(other) for other in self.obstacles):
                     self.obstacles.append(new_obstacle)
+
             self.last_obstacle_time = time.monotonic()
 
     def update(self):
@@ -203,23 +203,23 @@ class Game:
             obstacle.update()
             if obstacle.y > self.height:
                 self.obstacles.remove(obstacle)
-        self.spawn_obstacle()
+        self.update_car_position()
 
-        self.spawn_shield()  # 쉴드 아이템 생성 업데이트
+        self.spawn_shield()
         if self.shield_item.is_active():
             if time.monotonic() - self.shield_item.activation_time > self.shield_item.duration:
                 self.shield_item.deactivate()
 
-        self.shield_item.update()  # 쉴드 아이템 위치 업데이트
-        if self.shield_item.active and self.shield_item.collides_with(self):  # 플레이어와 쉴드 아이템이 충돌했는지 확인
-            self.shield_item.collect()  # 쉴드 아이템 수집
-        
+        self.shield_item.update()
+        if self.shield_item.active and self.shield_item.collides_with(self):
+            self.shield_item.collect()
+
+        self.spawn_obstacle(score)  
 
     def use_shield(self):
-        # 쉴드 아이템의 개수가 0보다 크면 사용 가능
         if not self.shield_item.is_active() and self.shield_item.count > 0:
             self.shield_item.spawn()
-            self.shield_item.count -= 1  # 쉴드 아이템 사용시 개수 감소
+            self.shield_item.count -= 1 
 
     def check_collision(self):
         for obstacle in self.obstacles:
@@ -229,17 +229,15 @@ class Game:
                 and self.car_y < obstacle.y + obstacle.height
                 and self.car_y + self.car_height > obstacle.y
             ):
-                if self.shield_item.is_active():  # 방어막 아이템이 활성화되어 충돌 무시 중인 경우
+                if self.shield_item.is_active():  
                     continue
                 else:
                     return True
         return False
     
-    def draw_text_with_outline(self, draw, text, x, y, font, fill_color, outline_color, outline_width):
-        # Draw the outline
+    def draw_text_with_outline(self, draw, text, x, y, font, fill_color, outline_color, outline_width):  # 테두리 텍스트
         for dx, dy in [(dx, dy) for dx in range(-outline_width, outline_width+1) for dy in range(-outline_width, outline_width+1)]:
             draw.text((x+dx, y+dy), text, font=font, fill=outline_color)
-        # Draw the text
         draw.text((x, y), text, font=font, fill=fill_color)
 
     def draw_score_and_shields(self, draw):
@@ -248,26 +246,23 @@ class Game:
         shields_text = f"Shields: {self.shield_item.count}"
         text_color = (255, 255, 255)  # 흰색
         outline_color = (0, 0, 0)  # 검정색
-        outline_width = 1  # 테두리 너비
+        outline_width = 1  # 테두리
 
         self.draw_text_with_outline(draw, score_text, 10, 10, font, text_color, outline_color, outline_width)
         self.draw_text_with_outline(draw, shields_text, 10, 30, font, text_color, outline_color, outline_width)
         
     def update_car_position(self):
-        if not joystick.button_L.value:  # Left button pressed
+        if not joystick.button_L.value:
             self.car_speed -= self.car_acceleration
-        elif not joystick.button_R.value:  # Right button pressed
+        elif not joystick.button_R.value: 
             self.car_speed += self.car_acceleration
         else:
-            self.car_speed *= 0.9
+            self.car_speed *= 0.9  # 마찰 효과
 
-        # Limit the car speed to the maximum speed
         self.car_speed = max(-self.car_max_speed, min(self.car_max_speed, self.car_speed))
 
-        # Update the car position based on the current speed
         self.car_x += self.car_speed
 
-        # Ensure the car stays within the screen bounds
         self.car_x = max(0, min(self.width - self.car_width, self.car_x))
 
     def draw_obstacles(self, draw):
@@ -275,20 +270,14 @@ class Game:
             obstacle.draw(draw)
 
     def draw_car(self, image):
-        # Create a mask from the alpha channel of the car image
         car_mask = self.car_image.split()[3]
-
-        # Paste the car image onto the background using the alpha channel as the mask
         image.paste(self.car_image, (int(self.car_x), int(self.car_y)), car_mask)
 
 
-# 시작 화면 이미지 로드
 start_screen = Image.open('racer/start.png').convert('RGBA').resize((joystick.disp.width, joystick.disp.height))
 
-# 게임 초기화
 game = Game(joystick.disp.width, joystick.disp.height)
 
-# 초기 시작 대기 화면 표시
 joystick.disp.image(start_screen)
 
 # 아무 버튼이나 누를 때까지 대기
@@ -308,29 +297,24 @@ while True:
     command = None
     game.update()
 
-    # Check for collision
-    if game.check_collision():
-        # Game Over
+    if not joystick.button_B.value:  # b 버튼으로 방어막 사용
+        game.use_shield()
+
+    if game.check_collision():  # 충돌 감지
         print("Game Over! Score:", score)
 
-        # Add the current score to the list of top scores
         top_scores.append(score)
-        # Sort the top scores in descending order
         top_scores.sort(reverse=True)
-        # Keep only the top 5 scores
-        top_scores = top_scores[:5]
+        top_scores = top_scores[:5]  # 최고 스코어
 
-        # Display game over screen
         game_over_screen = Image.open('racer/gameover.png').convert('RGBA').resize((joystick.disp.width, joystick.disp.height))
         draw = ImageDraw.Draw(game_over_screen)
 
-        # Display the top scores on the game over screen
-        text_color = (255, 255, 255)
+        text_color = (255, 255, 255)  # 스코어 텍스트
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 13)
 
         draw.text((82, 87), "Score: {}".format(score), font=font, fill=text_color)
 
-        # Display the top 5 scores
         for i, top_score in enumerate(top_scores):
             draw.text((95, 107 + i * 15), "{}. {}".format(i + 1, top_score), font=font, fill=text_color)
 
@@ -338,46 +322,31 @@ while True:
 
         while True:
             if not joystick.button_A.value and not joystick.button_B.value:
-                # Both buttons are released, wait for a button press
                 continue
-            if not joystick.button_A.value:
-                # 'A' button is pressed, start a new game
-                time.sleep(0.5)  # Add a delay to prevent accidental double presses
+            if not joystick.button_A.value:  # a버튼 -> exit 초기 대기 화면으로
+                time.sleep(0.1) 
 
-                # Reset the game state
                 game = Game(joystick.disp.width, joystick.disp.height)
                 score = 0
 
-                # Display the initial waiting screen
                 start_screen = Image.open('racer/start.png').convert('RGBA').resize((joystick.disp.width, joystick.disp.height))
                 joystick.disp.image(start_screen)
 
                 while joystick.button_L.value and joystick.button_R.value and joystick.button_A.value and joystick.button_B.value:
                     pass
                 break
-            elif not joystick.button_B.value:
-                # 'B' button is pressed, return to the waiting screen and start a new game
-                time.sleep(0.1)  # Add a delay to prevent accidental double presses
+            elif not joystick.button_B.value:  # b버튼 -> restart
+                time.sleep(0.01)  
 
-                # Reset the game state
                 game = Game(joystick.disp.width, joystick.disp.height)
                 score = 0
 
-                # Display the initial waiting screen
-                start_screen = Image.open('racer/start.png').convert('RGBA').resize((joystick.disp.width, joystick.disp.height))
-                joystick.disp.image(start_screen)
-
-                while joystick.button_L.value and joystick.button_R.value and joystick.button_A.value and joystick.button_B.value:
-                    pass
                 break
 
-    # Draw everything
     my_image = background_image.copy()
     draw = ImageDraw.Draw(my_image)
 
-    # Draw the scrolling background
-    game.draw_background(my_image)  # Modify this line
-
+    game.draw_background(my_image) 
     game.draw_shield(my_image)
     game.draw_car(my_image)
     game.draw_obstacles(my_image)
