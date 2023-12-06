@@ -119,7 +119,7 @@ class ShieldItem:
             self.y + self.height > other.car_y
         )
 
-    def update(self):
+    def update(self): 
         if self.active:
             self.y += self.spawn_speed
 
